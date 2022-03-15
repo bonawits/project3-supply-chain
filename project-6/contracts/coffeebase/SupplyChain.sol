@@ -7,15 +7,15 @@ import "../coffeeaccesscontrol/DistributorRole.sol";
 import "../coffeeaccesscontrol/RetailerRole.sol";
 
 // Define a contract 'Supplychain'
-// Ownable,
 contract SupplyChain is
+    Ownable,
     FarmerRole,
     DistributorRole,
     RetailerRole,
     ConsumerRole
 {
     // Define 'owner'
-    address owner;
+    address contractOwner;
 
     // Define a variable called 'upc' for Universal Product Code (UPC)
     uint256 upc;
@@ -75,7 +75,7 @@ contract SupplyChain is
 
     // Define a modifer that checks to see if msg.sender == owner of the contract
     modifier onlyOwner() {
-        require(msg.sender == owner);
+        require(msg.sender == contractOwner);
         _;
     }
 
@@ -151,15 +151,15 @@ contract SupplyChain is
     // and set 'sku' to 1
     // and set 'upc' to 1
     constructor() public payable {
-        owner = msg.sender;
+        contractOwner = msg.sender;
         sku = 1;
         upc = 1;
     }
 
     // Define a function 'kill' if required
     function kill() public {
-        if (msg.sender == owner) {
-            selfdestruct(owner);
+        if (msg.sender == contractOwner) {
+            selfdestruct(contractOwner);
         }
     }
 
@@ -172,7 +172,7 @@ contract SupplyChain is
         string _originFarmLatitude,
         string _originFarmLongitude,
         string _productNotes
-    ) public {
+    ) public onlyFarmer {
         // Add the new item as part of Harvest
         items[_upc] = Item({
             sku: sku,
@@ -204,6 +204,7 @@ contract SupplyChain is
         public
         harvested(_upc)
         verifyCaller(items[_upc].ownerID)
+        onlyFarmer
     {
         // Update the appropriate fields
         items[_upc].itemState = State.Processed;
@@ -232,6 +233,7 @@ contract SupplyChain is
         public
         packed(_upc)
         verifyCaller(items[_upc].ownerID)
+        onlyFarmer
     {
         // Update the appropriate fields
         items[_upc].itemState = State.ForSale;
@@ -253,6 +255,7 @@ contract SupplyChain is
         forSale(_upc)
         paidEnough(items[_upc].productPrice)
         checkValue(_upc)
+        onlyDistributor
     {
         // Update the appropriate fields - ownerID, distributorID, itemState
         items[_upc].ownerID = msg.sender;
@@ -273,6 +276,7 @@ contract SupplyChain is
         public
         sold(_upc)
         verifyCaller(items[_upc].ownerID)
+        onlyDistributor
     {
         // Update the appropriate fields
         items[_upc].itemState = State.Shipped;
@@ -285,7 +289,7 @@ contract SupplyChain is
 
     // Call modifier to check if upc has passed previous supply chain stage
     // Access Control List enforced by calling Smart Contract / DApp
-    function receiveItem(uint256 _upc) public shipped(_upc) {
+    function receiveItem(uint256 _upc) public shipped(_upc) onlyRetailer {
         // Update the appropriate fields - ownerID, retailerID, itemState
         items[_upc].ownerID = msg.sender;
         items[_upc].retailerID = msg.sender;
@@ -299,7 +303,7 @@ contract SupplyChain is
 
     // Call modifier to check if upc has passed previous supply chain stage
     // Access Control List enforced by calling Smart Contract / DApp
-    function purchaseItem(uint256 _upc) public received(_upc) {
+    function purchaseItem(uint256 _upc) public received(_upc) onlyConsumer {
         // Update the appropriate fields - ownerID, consumerID, itemState
         items[_upc].ownerID = msg.sender;
         items[_upc].consumerID = msg.sender;
